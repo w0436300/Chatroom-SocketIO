@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+    <meta name="keywords" content="Node, events, sockets, chat">
+    <title>Chat App</title>
+    <style>
+        .container {
+            margin: auto;
+            width: 60%;
+            border: 5px solid #000000;
+            padding: 10px;
+        }
+        #chatDisplay {
+            font-size: 25px; 
+        }
+
+        #chatDisplay div{
+            border: 1px solid rgb(213, 254, 212); 
+            border-radius: 10px;
+            width: max-content;
+            margin: 10px 0;
+        }
+
+        .name-time {
+            background-color: rgb(206, 241, 206);
+            border-radius: 10px;
+            display: block;
+        }
+  
+        .bottom-panel, .bottom-panel input {
+            font-size: 25px;
+        }
+        #sendButton, #connectButton, #disconnectButton {
+            font-size: 22px;
+        }
+        
+    </style>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn4ZEO3Qt/HFklTJBj/gBOV8G3HcKn4NfQblz" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container" style="height: 500px;max-height: 500px;overflow-y: scroll;">
+        <div id="chatDisplay"></div>
+    </div>
+    <div class="container bottom-panel">
+        <button id='connectButton'>Connect</button>
+        <button id='disconnectButton'>Disconnect</button>
+        <p>Number of people in the chat: <span id="user_number"></span></p>
+        <p>Current Server Time: <span id="time-display"></span></p>
+        <p>Your Name: <input type="text" id="name" /></p>
+        <p>Your Message: <input type="text" id="message" style="width: 100%" /></p>
+        <button id='sendButton'>Send Message</button>
+    </div>
+    <script>
+        //get out necessary DoM elemennts one at beginning of the scroipt
+        const chatDisplayElements = document.querySelector("#chatDisplay");
+        const nameInputbox = document.querySelector("#name");
+        const messageInputbox = document.querySelector("#message");
+        const sendButton = document.querySelector("#sendButton");
+        const timeSpan = document.querySelector("#time-display");
+        const connectButton = document.querySelector("#connectButton");
+        const disconnectButton = document.querySelector("#disconnectButton");
+        const userNumber = document.querySelector("#user_number")
+
+        //handle connectbutton
+        connectButton.addEventListener("click", () => {
+            socket = io();
+            currentUserName = nameInputbox.value;
+            socketEvent();
+            EnableUI();
+        });
+
+        //handle disconnectbutton
+        disconnectButton.addEventListener("click", () => {
+            socket.disconnect();
+            DisableUI()
+        });
+    
+        //handle a new client message event 
+        sendButton.addEventListener("click", () => {
+            //get the message from the input boxes
+            const userName = nameInputbox.value;
+            const newChat = messageInputbox.value;
+            const sendTime = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            
+            //let's handle empty messages 
+            if(userName.length === 0 || newChat.length === 0) {
+                alert("youm usrt enter both a name and a message")
+            }
+            else{
+                 //bundle my info into an object before sending
+                const data = { name: userName, message: newChat, time:sendTime };
+                //emit a new event to send the new chat to the server
+                socket.emit('message',data);
+            }
+        });  
+
+        //socket connect event listeners
+        const socketEvent = () => {
+
+            //handle the welcome event from the server 
+                socket.on('Welcome', (message) => {
+                    console.log(message);
+
+                    //how can I write this message to the HTML DOM??
+                    const pTag = document.createElement("p");
+                    pTag.innerText = message;
+                    chatDisplayElements.appendChild(pTag);
+                })
+
+                //handle a new chat boardcast fron the server 
+                socket.on('new_message',(messageInfo) => {
+                    
+                    const messageContainer = document.createElement("div");
+                    
+                    //name -time
+                    const nameTimeSpan = document.createElement("span");
+                    nameTimeSpan.innerText = `[${messageInfo.name}][${messageInfo.time}]`
+                    nameTimeSpan.classList.add("name-time");
+
+                    // message
+                    const messageSpan = document.createElement("span");
+                    messageSpan.innerText = messageInfo.message;
+                    messageSpan.classList.add("message-content");
+
+                    // add span to div
+                    messageContainer.appendChild(nameTimeSpan);
+                    messageContainer.appendChild(document.createElement("br"));
+                    messageContainer.appendChild(messageSpan);
+
+                    chatDisplayElements.appendChild(messageContainer);
+                });
+
+                //handle (listen for )server time event
+                socket.on('server_time',(serverTime) => {
+                    timeSpan.innerText = serverTime;
+                });
+
+                 //handle (listen for )server count event
+                 socket.on('user_number',(usersNumber) => {
+                    userNumber.innerText = usersNumber;
+                });
+
+                //handle the server disconnectinng 
+                socket.on('disconnect',() => {
+                    console.log("server disconnected");
+                });
+        }
+                
+        //EnableUI and DisableUI
+        const EnableUI = () => {
+            connectButton.disabled = true;
+            disconnectButton.disabled = false;
+            userNumber.disabled = true;
+            chatDisplayElements.disabled = false;
+            nameInputbox.disabled = false;
+            messageInputbox.disabled = false;
+            sendButton.disabled = false;
+        };
+
+        //EnableUI and DisableUI
+        const DisableUI = () => {
+            connectButton.disabled = false;
+            disconnectButton.disabled = true;
+            chatDisplayElements.disabled = true;
+            nameInputbox.disabled = true;
+            messageInputbox.disabled = true;
+            nameInputbox.value = "";
+            messageInputbox.value = "";
+            sendButton.disabled = true;
+            userNumber.innerText = " ";
+            timeSpan.innerText = "";
+            chatDisplayElements.innerText = "";
+        }
+        DisableUI();
+    </script>
+</body>
+</html>
